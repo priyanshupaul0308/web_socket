@@ -15,7 +15,7 @@ bool initialize() {
 void sendmsg(SOCKET s) {
     cout << "Enter your chat name: ";
     string name;
-    getline(cin >> ws, name);  // ✅ Fix: Ensures no leading whitespace issues
+    getline(cin >> ws, name);  
 
     string message;
     while (true) {
