@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Elite Chat</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#4A90E2',
+                        secondary: '#2C3E50',
+                        light: '#2B2D42',
+                        dark: '#1E1E2E',
+                        accent: '#6C5CE7'
+                    }
+                }
+            }
+        };
+    </script>
+    <style>
+        .message-bubble {
+    padding: 10px;
+    border-radius: 12px;
+    max-width: 75%;
+    word-wrap: break-word;
+    margin-bottom: 10px;
+}
+
+.my-message {
+    background: #4A90E2;
+    text-align: right;
+    margin-left: auto; /* Align right */
+}
+
+.other-message {
+    background: #2C3E50;
+    text-align: left;
+    margin-right: auto; /* Align left */
+}
+
+    </style>
+</head>
+<body class="flex flex-col items-center justify-center min-h-screen bg-light text-white">
+
+    <div id="namePrompt" class="glassmorphism w-2/5 text-center">
+        <h1 class="text-6xl font-extrabold text-accent">Elite Chat</h1>
+        <p class="text-2xl mt-5 text-gray-300">Enter your name to start chatting</p>
+        <input id="username" type="text" placeholder="Enter name..." class="mt-6 w-full p-4 rounded-lg text-gray-900 text-xl">
+        <button onclick="enterChat()" class="mt-6 w-full bg-accent text-white py-4 rounded-lg text-xl font-semibold">Join Chat</button>
+    </div>
+
+    <div id="chatContainer" class="hidden glassmorphism w-[90%] md:w-[900px]">
+        <div class="flex justify-between items-center pb-4 border-b border-gray-500">
+            <h1 class="text-3xl font-bold text-accent">Elite Chat</h1>
+        </div>
+        <div class="flex mt-6">
+            <div id="userList" class="w-1/4 p-4 bg-gray-800 rounded-lg text-left text-white">
+                <h2 class="text-lg font-semibold border-b pb-2">Online Users</h2>
+                <ul id="users" class="mt-3 text-gray-300"></ul>
+            </div>
+            <div id="messages" class="flex-1 p-5 border rounded-lg h-96 overflow-auto bg-gray-900 text-white"></div>
+        </div>
+        <div class="mt-6 flex">
+            <input id="messageInput" type="text" placeholder="Type a message..." class="w-full p-4 rounded-l-lg bg-gray-700 text-white">
+            <button onclick="sendMessage()" class="bg-primary text-white px-6 py-4 rounded-r-lg font-bold">Send</button>
+        </div>
+    </div>
+
+    <script>
+        let socket;
+        let username;
+
+        function enterChat() {
+            username = document.getElementById("username").value.trim();
+            if (username === "") {
+                alert("Please enter a name");
+                return;
+            }
+
+            document.getElementById("namePrompt").classList.add("hidden");
+            document.getElementById("chatContainer").classList.remove("hidden");
+            startChat();
+        }
+
+        function startChat() {
+            socket = new WebSocket("ws://localhost:3000");
+
+            socket.onopen = () => {
+                socket.send(JSON.stringify({ type: "join", username: username }));
+            };
+
+            socket.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+
+                if (data.type === "userList") {
+                    updateUserList(data.users);
+                } else if (data.type === "chat") {
+                    displayMessage(data.username, data.message);
+                }
+            };
+
+            socket.onclose = () => {
+                displayMessage("System", "Disconnected from chat.");
+            };
+
+            socket.onerror = (error) => console.error("WebSocket Error: ", error);
+        }
+        function sendMessage() {
+    const input = document.getElementById("messageInput");
+    const message = input.value.trim();
+    if (message !== "") {
+        socket.send(JSON.stringify({ type: "chat", username: username, message: message }));
+        displayMessage(username, message, true); // Display message only on the sender's UI (right side)
+        input.value = "";
+    }
+}
+
+function displayMessage(sender, message, isMine = false) {
+    const messagesDiv = document.getElementById("messages");
+    
+    // Check if the message is already displayed, to avoid duplicates
+    const existingMessages = messagesDiv.getElementsByClassName('message-bubble');
+    for (let i = 0; i < existingMessages.length; i++) {
+        if (existingMessages[i].textContent === `${sender}: ${message}`) {
+            return; // Message already exists, so don't display it again
+        }
+    }
+
+    const msgElement = document.createElement("div");
+    
+    // Apply the correct class based on whether the message is sent by the current user or others
+    msgElement.className = `message-bubble ${isMine ? 'my-message' : 'other-message'}`;
+    msgElement.innerHTML = `<strong>${sender}:</strong> ${message}`;
+    
+    messagesDiv.appendChild(msgElement);
+    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+}
+
+
+        function updateUserList(users) {
+            const userList = document.getElementById("users");
+            userList.innerHTML = "";
+            users.forEach(user => {
+                const li = document.createElement("li");
+                li.textContent = user;
+                userList.appendChild(li);
+            });
+        }
+    </script>
+</body>
+</html>
